@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% set active = "routes" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Yo'nalishlar ({{ total }})</h1>
+    <button class="btn btn-primary" onclick="showModal('add-route-modal')">➕ Yangi yo'nalish</button>
+</div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Nomi</th>
+                <th>Yo'nalish</th>
+                <th>Narx</th>
+                <th>Holat</th>
+                <th>Buyurtmalar</th>
+                <th>Haydovchilar</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for route in routes %}
+            {% set stats = route_stats[route.id] %}
+            <tr>
+                <td>#{{ route.id }}</td>
+                <td><strong>{{ route.name or '—' }}</strong></td>
+                <td>{{ route.from_name }} ↔ {{ route.to_name }}</td>
+                <td>{{ "{:,}".format(route.price) }} so'm</td>
+                <td><span class="badge-status {% if route.is_active %}badge-online{% else %}badge-offline{% endif %}">{% if route.is_active %}Faol{% else %}To'xtatilgan{% endif %}</span></td>
+                <td>{{ stats.orders }} (✅{{ stats.completed }})</td>
+                <td>{{ stats.drivers }}</td>
+                <td style="white-space:nowrap">
+                    <button class="btn btn-outline btn-sm" onclick="showModal('price-modal-{{ route.id }}')">✏️</button>
+                    <button class="btn btn-outline btn-sm" onclick="routeToggle({{ route.id }})">{% if route.is_active %}⏸{% else %}▶️{% endif %}</button>
+                    <button class="btn btn-danger btn-sm" onclick="routeDelete({{ route.id }})">🗑</button>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not routes %}
+            <tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:40px">Yo'nalishlar yo'q</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}<a href="/routes?page={{ page-1 }}">◀</a>{% endif %}
+        {% for p in range(1, total_pages+1) %}
+            {% if p == page %}<span class="current">{{ p }}</span>
+            {% else %}<a href="/routes?page={{ p }}">{{ p }}</a>{% endif %}
+        {% endfor %}
+        {% if page < total_pages %}<a href="/routes?page={{ page+1 }}">▶</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Route Modal -->
+<div class="modal-overlay" id="add-route-modal">
+    <div class="modal" style="width:480px">
+        <h3>Yangi yo'nalish qo'shish</h3>
+
+        <label class="modal-label">📍 VILOYAT</label>
+        <select id="route-region" onchange="loadDistricts()" class="modal-select">
+            <option value="">Viloyat tanlang</option>
+        </select>
+
+        <label class="modal-label">📍 TUMAN</label>
+        <select id="route-district" class="modal-select">
+            <option value="">Tuman tanlang</option>
+        </select>
+
+        <label class="modal-label">🏷 YO'NALISH NOMI</label>
+        <input type="text" id="route-name" placeholder="Masalan: 1-chi yo'nalish">
+
+        <label class="modal-label">🅰️ A JOY (qayerdan)</label>
+        <input type="text" id="route-from" placeholder="Masalan: Chilonzor metro">
+
+        <label class="modal-label">🅱️ B JOY (qayerga)</label>
+        <input type="text" id="route-to" placeholder="Masalan: Samarqand vokzal">
+
+        <label class="modal-label">💰 NARX (1 kishi uchun)</label>
+        <input type="number" id="route-price" placeholder="Masalan: 50000">
+
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="hideModal('add-route-modal')">Bekor qilish</button>
+            <button class="btn btn-primary" onclick="createRoute()">Yaratish</button>
+        </div>
+    </div>
+</div>
+
+<!-- Price Edit Modals -->
+{% for route in routes %}
+<div class="modal-overlay" id="price-modal-{{ route.id }}">
+    <div class="modal">
+        <h3>Narxni o'zgartirish</h3>
+        <p style="color:var(--text-dim);margin-bottom:12px">{{ route.name or '' }} {{ route.from_name }} ↔ {{ route.to_name }}</p>
+        <input type="number" id="price-input-{{ route.id }}" value="{{ route.price }}">
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="hideModal('price-modal-{{ route.id }}')">Bekor qilish</button>
+            <button class="btn btn-primary" onclick="updatePrice({{ route.id }})">Saqlash</button>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const res = await fetch('/api/locations/regions');
+    const regions = await res.json();
+    const sel = document.getElementById('route-region');
+    regions.forEach(r => {
+        sel.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+    });
+});
+
+async function loadDistricts() {
+    const regionId = document.getElementById('route-region').value;
+    const distSel = document.getElementById('route-district');
+    distSel.innerHTML = '<option value="">Tuman tanlang</option>';
+    if (!regionId) return;
+    const res = await fetch(`/api/locations/districts/${regionId}`);
+    const districts = await res.json();
+    districts.forEach(d => {
+        distSel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    });
+}
+
+async function createRoute() {
+    const region = document.getElementById('route-region').value;
+    const district = document.getElementById('route-district').value;
+    const name = document.getElementById('route-name').value.trim();
+    const from_name = document.getElementById('route-from').value.trim();
+    const to_name = document.getElementById('route-to').value.trim();
+    const price = document.getElementById('route-price').value;
+
+    if (!region || !district || !from_name || !to_name || !price) {
+        alert("Barcha maydonlarni to'ldiring");
+        return;
+    }
+    const r = await apiAction('/api/routes', 'POST', {
+        region, district, name, from_name, to_name, price: parseInt(price)
+    });
+    if (r?.ok) location.reload();
+}
+
+function updatePrice(routeId) {
+    const price = document.getElementById(`price-input-${routeId}`).value;
+    if (!price || isNaN(price)) { alert('Raqam kiriting'); return; }
+    apiAction(`/api/routes/${routeId}/price`, 'POST', { price: parseInt(price) }).then(r => {
+        if (r?.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

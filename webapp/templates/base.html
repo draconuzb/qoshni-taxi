@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaxiBek Manager</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
+</head>
+<body>
+<div class="layout">
+    <nav class="sidebar">
+        <div class="sidebar-logo">TaxiBek</div>
+        <a href="/" class="{% if active == 'dashboard' %}active{% endif %}">
+            <span>📊</span> Dashboard
+        </a>
+        <a href="/trips" class="{% if active == 'trips' %}active{% endif %}">
+            <span>🚐</span> Safarlar
+        </a>
+        <a href="/drivers?filter=all" class="{% if active == 'drivers' %}active{% endif %}">
+            <span>🚗</span> Haydovchilar
+            {% if pending_count %}<span class="badge">{{ pending_count }}</span>{% endif %}
+        </a>
+        <a href="/routes" class="{% if active == 'routes' %}active{% endif %}">
+            <span>🛣</span> Yo'nalishlar
+        </a>
+        <a href="/users" class="{% if active == 'users' %}active{% endif %}">
+            <span>👥</span> Foydalanuvchilar
+        </a>
+        <div class="sidebar-divider"></div>
+        <a href="/settings" class="{% if active == 'settings' %}active{% endif %}">
+            <span>⚙️</span> Sozlamalar
+        </a>
+    </nav>
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+<script src="/static/js/app.js?v=2"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

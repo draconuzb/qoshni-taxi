@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set active = "users" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ user.full_name }}</h1>
+    <a href="/users" class="btn btn-outline">◀ Orqaga</a>
+</div>
+
+<div class="actions">
+    {% if user.is_blocked %}
+    <button class="btn btn-warning" onclick="userAction({{ user.id }}, 'unblock')">🔓 Blokdan chiqarish</button>
+    {% else %}
+    <button class="btn btn-danger" onclick="userAction({{ user.id }}, 'block')">🚫 Bloklash</button>
+    {% endif %}
+    <button class="btn btn-outline" onclick="showModal('edit-user-modal')">✏️ Tahrirlash</button>
+    <button class="btn btn-danger" onclick="deleteUser({{ user.id }})">🗑 O'chirish</button>
+</div>
+
+<div class="detail-grid">
+    <div class="detail-card">
+        <h3>Shaxsiy ma'lumotlar</h3>
+        <div class="detail-row"><span class="label">Ism</span><span class="value">{{ user.full_name }}</span></div>
+        <div class="detail-row"><span class="label">Telefon</span><span class="value">{{ user.phone or '—' }}</span></div>
+        <div class="detail-row"><span class="label">Telegram ID</span><span class="value">{{ user.telegram_id }}</span></div>
+        <div class="detail-row">
+            <span class="label">Rol</span>
+            <span class="value">
+                <select id="user-role" onchange="changeRole({{ user.id }})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:13px">
+                    <option value="user" {% if user.role == 'user' %}selected{% endif %}>👤 Foydalanuvchi</option>
+                    <option value="driver" {% if user.role == 'driver' %}selected{% endif %}>🚗 Haydovchi</option>
+                    <option value="manager" {% if user.role == 'manager' %}selected{% endif %}>👨‍💼 Manager</option>
+                </select>
+            </span>
+        </div>
+        <div class="detail-row">
+            <span class="label">Holat</span>
+            <span class="value">{% if user.is_blocked %}<span class="badge-status badge-blocked">Bloklangan</span>{% else %}<span class="badge-status badge-online">Faol</span>{% endif %}</span>
+        </div>
+        <div class="detail-row"><span class="label">Til</span><span class="value">{{ user.language or 'uz' }}</span></div>
+        <div class="detail-row"><span class="label">Ro'yxatdan</span><span class="value">{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '—' }}</span></div>
+    </div>
+    <div class="detail-card">
+        <h3>Statistika</h3>
+        <div class="detail-row"><span class="label">Jami bronlar</span><span class="value">{{ total_bookings }}</span></div>
+        {% if fav_routes %}
+        <h3 style="margin-top:16px">Yo'nalishlar</h3>
+        {% for fr in fav_routes %}
+        <div class="detail-row">
+            <span class="label">{{ fr.route.from_name }} ↔ {{ fr.route.to_name }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+{% if recent_bookings %}
+<div class="table-wrap">
+    <div class="table-header"><h2>Oxirgi bronlar</h2></div>
+    <table>
+        <thead><tr><th>#</th><th>Yo'nalish</th><th>Holat</th><th>Sana</th></tr></thead>
+        <tbody>
+            {% for b in recent_bookings %}
+            <tr>
+                <td>#{{ b.id }}</td>
+                <td>{% if b.trip and b.trip.route %}{{ b.trip.route.from_name }} → {{ b.trip.route.to_name }}{% else %}—{% endif %}</td>
+                <td><span class="badge-status badge-{{ b.status }}">{{ b.status }}</span></td>
+                <td>{{ b.created_at.strftime('%d.%m.%Y %H:%M') if b.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="modal-overlay" id="edit-user-modal">
+    <div class="modal">
+        <h3>Foydalanuvchini tahrirlash</h3>
+        <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">ISM</label>
+        <input type="text" id="edit-full-name" value="{{ user.full_name }}">
+        <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">TELEFON</label>
+        <input type="text" id="edit-phone" value="{{ user.phone or '' }}">
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="hideModal('edit-user-modal')">Bekor qilish</button>
+            <button class="btn btn-primary" onclick="updateUser({{ user.id }})">Saqlash</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function changeRole(userId) {
+    const role = document.getElementById('user-role').value;
+    const r = await apiAction(`/api/users/${userId}/role`, 'POST', { role });
+    if (r?.ok) location.reload();
+}
+async function updateUser(userId) {
+    const r = await apiAction(`/api/users/${userId}/update`, 'POST', {
+        full_name: document.getElementById('edit-full-name').value,
+        phone: document.getElementById('edit-phone').value,
+    });
+    if (r?.ok) location.reload();
+}
+</script>
+{% endblock %}

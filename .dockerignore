@@ -1,0 +1,15 @@
+__pycache__
+*.py[cod]
+.env
+.venv
+venv
+*.db
+ngrok
+ngrok.exe
+__MACOSX
+.git
+.gitignore
+.claude
+.idea
+.vscode
+*.md

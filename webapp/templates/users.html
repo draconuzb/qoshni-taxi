@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set active = "users" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Foydalanuvchilar ({{ total }})</h1>
+</div>
+
+<div class="filters" style="margin-bottom:12px">
+    <a href="/users?q={{ q }}&role=all" class="filter-btn {% if role == 'all' %}active{% endif %}">Barchasi</a>
+    <a href="/users?q={{ q }}&role=user" class="filter-btn {% if role == 'user' %}active{% endif %}">👤 Yo'lovchi</a>
+    <a href="/users?q={{ q }}&role=driver" class="filter-btn {% if role == 'driver' %}active{% endif %}">🚗 Haydovchi</a>
+    <a href="/users?q={{ q }}&role=dispatcher" class="filter-btn {% if role == 'dispatcher' %}active{% endif %}">📋 Dispatcher</a>
+    <a href="/users?q={{ q }}&role=manager" class="filter-btn {% if role == 'manager' %}active{% endif %}">👨‍💼 Manager</a>
+</div>
+
+<form class="search-box" method="GET" action="/users" style="margin-bottom:20px">
+    <input type="hidden" name="role" value="{{ role }}">
+    <input type="text" name="q" placeholder="Ism yoki telefon bo'yicha qidirish..." value="{{ q }}">
+    <button type="submit" class="btn btn-primary">🔍 Qidirish</button>
+    {% if q %}<a href="/users?role={{ role }}" class="btn btn-outline">✕ Tozalash</a>{% endif %}
+</form>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Ism</th>
+                <th>Telefon</th>
+                <th>Telegram ID</th>
+                <th>Rol</th>
+                <th>Holat</th>
+                <th>Ro'yxatdan</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><a href="/users/{{ user.id }}">{{ user.full_name }}</a></td>
+                <td>{{ user.phone or '—' }}</td>
+                <td><code>{{ user.telegram_id }}</code></td>
+                <td>
+                    {% if user.role == 'manager' %}👨‍💼 Manager
+                    {% elif user.role == 'driver' %}🚗 Haydovchi
+                    {% elif user.role == 'dispatcher' %}📋 Dispatcher
+                    {% else %}👤 Foydalanuvchi{% endif %}
+                </td>
+                <td>
+                    {% if user.is_blocked %}
+                    <span class="badge-status badge-blocked">Bloklangan</span>
+                    {% else %}
+                    <span class="badge-status badge-online">Faol</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_at.strftime('%d.%m.%Y') if user.created_at else '—' }}</td>
+                <td>
+                    {% if user.is_blocked %}
+                    <button class="btn btn-warning btn-sm" onclick="userAction({{ user.id }}, 'unblock')">🔓</button>
+                    {% else %}
+                    <button class="btn btn-danger btn-sm" onclick="userAction({{ user.id }}, 'block')">🚫</button>
+                    {% endif %}
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser({{ user.id }})">🗑</button>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not users %}
+            <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">Foydalanuvchilar topilmadi</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}<a href="/users?q={{ q }}&role={{ role }}&page={{ page-1 }}">◀</a>{% endif %}
+        {% for p in range(1, total_pages+1) %}
+            {% if p == page %}<span class="current">{{ p }}</span>
+            {% else %}<a href="/users?q={{ q }}&role={{ role }}&page={{ p }}">{{ p }}</a>{% endif %}
+        {% endfor %}
+        {% if page < total_pages %}<a href="/users?q={{ q }}&role={{ role }}&page={{ page+1 }}">▶</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
