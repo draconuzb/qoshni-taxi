@@ -358,7 +358,7 @@ async def edit_comment_start(callback: CallbackQuery, session: AsyncSession, db_
     if not booking or booking.user_id != db_user.id:
         return
     if booking.status != BookingStatus.ACTIVE:
-        await callback.answer("❌ Bu bron faol emas.", show_alert=True)
+        await callback.answer(t("booking_not_active", lang), show_alert=True)
         return
     current = booking.comment or "—"
     await state.update_data(edit_booking_id=booking_id)
@@ -385,8 +385,8 @@ async def edit_comment_save(message: Message, session: AsyncSession, db_user: Us
 
 
 @router.message(BookingState.editing_comment)
-async def edit_comment_invalid(message: Message, state: FSMContext):
-    await message.answer("📝 Iltimos, matn yuboring.")
+async def edit_comment_invalid(message: Message, state: FSMContext, lang: str = "uz"):
+    await message.answer(t("send_text_please", lang))
 
 
 @router.callback_query(F.data.startswith("book:del_comment:"))
@@ -398,7 +398,7 @@ async def delete_comment(callback: CallbackQuery, session: AsyncSession, db_user
     if not booking or booking.user_id != db_user.id:
         return
     if booking.status != BookingStatus.ACTIVE:
-        await callback.answer("❌ Bu bron faol emas.", show_alert=True)
+        await callback.answer(t("booking_not_active", lang), show_alert=True)
         return
     booking.comment = None
     await session.commit()
@@ -443,10 +443,10 @@ async def cancel_booking(callback: CallbackQuery, session: AsyncSession, db_user
     booking_id = int(callback.data.split(":")[-1])
     booking = await session.get(Booking, booking_id)
     if not booking or booking.user_id != db_user.id:
-        await callback.message.edit_text("❌ Bron topilmadi.")
+        await callback.message.edit_text(t("booking_not_found", lang))
         return
     if booking.status != BookingStatus.ACTIVE:
-        await callback.message.edit_text("ℹ️ Bu bron allaqachon bekor qilingan.")
+        await callback.message.edit_text(t("booking_already_cancelled", lang))
         return
 
     await session.refresh(booking, ["trip"])

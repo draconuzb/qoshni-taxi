@@ -1,20 +1,21 @@
 import logging
 import math
-import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from infrastructure.database import async_session
+from infrastructure.config import settings as app_settings
+from infrastructure import session_store
 from core.enums import DriverStatus, TripStatus, TripDirection, UserRole
 from core.models import Driver, Route, Trip, Booking, UserRoute
 from core.models.user import User
@@ -22,11 +23,19 @@ from core.locations import REGIONS, get_full_location
 
 logger = logging.getLogger(__name__)
 
-ADMIN_PHONE = os.environ.get("ADMIN_PHONE", "+998946930103")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "oson2024")
-_SESSION_COOKIE = "admin_session"
-_session_tokens: set[str] = set()
+ADMIN_PHONE = app_settings.admin_phone
+ADMIN_PASSWORD = app_settings.admin_password
+SESSION_TTL = app_settings.session_ttl_seconds
+SESSION_SECURE = app_settings.session_secure_cookie
 
+_SESSION_COOKIE = "admin_session"
+_CSRF_COOKIE = "csrf_token"
+_CSRF_HEADER = "x-csrf-token"
+_UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_PUBLIC_PATHS = {"/login", "/health", "/favicon.ico"}
+
+LOGIN_RATE_LIMIT_ATTEMPTS = 5
+LOGIN_RATE_LIMIT_WINDOW = 300
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
@@ -41,68 +50,139 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if path.startswith("/static") or path == "/login":
+        if path.startswith("/static") or path in _PUBLIC_PATHS:
             return await call_next(request)
-        session_token = request.cookies.get(_SESSION_COOKIE)
-        if not session_token or session_token not in _session_tokens:
+        token = request.cookies.get(_SESSION_COOKIE)
+        if not await session_store.session_is_valid(token):
+            if path.startswith("/api/"):
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
             return RedirectResponse("/login", status_code=302)
         return await call_next(request)
 
 
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """Double-submit cookie CSRF protection for unsafe methods on /api/*."""
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method in _UNSAFE_METHODS and request.url.path.startswith("/api/"):
+            cookie_token = request.cookies.get(_CSRF_COOKIE)
+            header_token = request.headers.get(_CSRF_HEADER)
+            if not cookie_token or not header_token or not secrets.compare_digest(cookie_token, header_token):
+                return JSONResponse({"error": "csrf_failed"}, status_code=403)
+        response = await call_next(request)
+        if not request.cookies.get(_CSRF_COOKIE):
+            response.set_cookie(
+                _CSRF_COOKIE,
+                secrets.token_urlsafe(32),
+                httponly=False,
+                samesite="lax",
+                secure=SESSION_SECURE,
+                max_age=SESSION_TTL,
+            )
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not ADMIN_PHONE or not ADMIN_PASSWORD:
+        logger.error("ADMIN_PHONE / ADMIN_PASSWORD not configured — login is DISABLED")
     yield
+    await session_store.close()
+
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(CSRFMiddleware)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(NoCacheMiddleware)
 app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
 templates = Jinja2Templates(directory="webapp/templates")
 
 
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@app.get("/health")
+async def health():
+    """Liveness + DB probe."""
+    db_ok = True
+    try:
+        async with async_session() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error("Health DB check failed: %s", e)
+        db_ok = False
+    return JSONResponse(
+        {"ok": db_ok, "status": "healthy" if db_ok else "degraded"},
+        status_code=200 if db_ok else 503,
+    )
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = ""):
-    return HTMLResponse(
-        f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oson Transport — Kirish</title>
-<style>
-body{{font-family:'Inter',sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f8fafc}}
-.card{{background:#fff;padding:2.5rem;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.08);width:100%;max-width:380px}}
-h2{{margin:0 0 1.5rem;text-align:center;color:#0f172a;font-size:1.4rem}}
-label{{font-size:.85rem;color:#64748b;display:block;margin-bottom:.3rem}}
-input{{width:100%;padding:.75rem;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;margin-bottom:1rem;font-size:1rem}}
-input:focus{{outline:none;border-color:#34D399}}
-button{{width:100%;padding:.75rem;background:#34D399;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600}}
-button:hover{{background:#059669}}
-.error{{color:#ef4444;text-align:center;margin-bottom:1rem;font-size:.9rem}}
-.logo{{text-align:center;margin-bottom:1rem;font-size:1.5rem;font-weight:700;color:#34D399}}
-</style></head><body>
-<div class="card">
-<div class="logo">Oson Transport</div>
-<h2>Kirish</h2>
-{"<p class='error'>Telefon yoki parol noto'g'ri</p>" if error else ""}
-<form method="post" action="/login">
-<label>Telefon raqam</label>
-<input type="tel" name="phone" placeholder="+998946930103" autofocus required>
-<label>Parol</label>
-<input type="password" name="password" required>
-<button type="submit">Kirish</button>
-</form></div></body></html>"""
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "error": bool(error),
+            "error_message": "Juda ko'p urinish. Keyinroq urinib ko'ring." if error == "rate"
+                             else "Telefon yoki parol noto'g'ri",
+        },
     )
 
 
 @app.post("/login")
 async def login_submit(request: Request):
+    ip = _client_ip(request)
+    allowed, retry = await session_store.rate_limit_check(
+        f"login:{ip}", LOGIN_RATE_LIMIT_ATTEMPTS, LOGIN_RATE_LIMIT_WINDOW,
+    )
+    if not allowed:
+        logger.warning("Login rate-limited: ip=%s retry=%ds", ip, retry)
+        return RedirectResponse("/login?error=rate", status_code=302)
+
     form = await request.form()
     phone = str(form.get("phone", "")).strip()
     password = str(form.get("password", "")).strip()
-    if phone != ADMIN_PHONE or password != ADMIN_PASSWORD:
+
+    if not ADMIN_PHONE or not ADMIN_PASSWORD:
+        logger.error("Login attempt while admin creds unset")
         return RedirectResponse("/login?error=1", status_code=302)
+
+    phone_ok = secrets.compare_digest(phone, ADMIN_PHONE)
+    pwd_ok = secrets.compare_digest(password, ADMIN_PASSWORD)
+    if not (phone_ok and pwd_ok):
+        logger.info("Failed login: ip=%s phone=%s", ip, phone[:6] + "***")
+        return RedirectResponse("/login?error=1", status_code=302)
+
     session_token = secrets.token_urlsafe(32)
-    _session_tokens.add(session_token)
+    await session_store.session_create(session_token, SESSION_TTL)
+    logger.info("Login success: ip=%s", ip)
+
     response = RedirectResponse("/", status_code=302)
-    response.set_cookie(_SESSION_COOKIE, session_token, httponly=True, samesite="lax")
+    response.set_cookie(
+        _SESSION_COOKIE, session_token,
+        httponly=True, samesite="lax", secure=SESSION_SECURE,
+        max_age=SESSION_TTL,
+    )
+    response.set_cookie(
+        _CSRF_COOKIE, secrets.token_urlsafe(32),
+        httponly=False, samesite="lax", secure=SESSION_SECURE,
+        max_age=SESSION_TTL,
+    )
+    return response
+
+
+@app.post("/logout")
+async def logout(request: Request):
+    token = request.cookies.get(_SESSION_COOKIE)
+    if token:
+        await session_store.session_delete(token)
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie(_SESSION_COOKIE)
     return response
 
 
@@ -324,8 +404,22 @@ async def api_districts(region_id: str):
 @app.post("/api/routes", response_class=JSONResponse)
 async def api_create_route(request: Request, session: AsyncSession = Depends(get_session)):
     data = await request.json()
-    route = Route(name=data.get("name", ""), region=data["region"], district=data["district"],
-                  from_name=data["from_name"], to_name=data["to_name"], price=int(data["price"]))
+    try:
+        price = int(data.get("price", 0))
+        if price < 0 or price > 100_000_000:
+            raise ValueError("price out of range")
+        route = Route(
+            name=str(data.get("name", ""))[:100],
+            region=str(data.get("region", ""))[:50],
+            district=str(data.get("district", ""))[:50],
+            from_name=str(data.get("from_name", ""))[:255],
+            to_name=str(data.get("to_name", ""))[:255],
+            price=price,
+        )
+    except (ValueError, TypeError, KeyError) as e:
+        raise HTTPException(400, detail=f"Invalid input: {e}")
+    if not route.from_name or not route.to_name:
+        raise HTTPException(400, detail="from_name/to_name required")
     session.add(route)
     await session.commit()
     return {"ok": True, "id": route.id}
@@ -343,7 +437,13 @@ async def api_update_price(route_id: int, request: Request, session: AsyncSessio
     data = await request.json()
     route = await session.get(Route, route_id)
     if not route: raise HTTPException(404)
-    route.price = int(data["price"])
+    try:
+        price = int(data.get("price", 0))
+    except (ValueError, TypeError):
+        raise HTTPException(400, detail="Invalid price")
+    if price < 0 or price > 100_000_000:
+        raise HTTPException(400, detail="Price out of range")
+    route.price = price
     await session.commit()
     return {"ok": True}
 

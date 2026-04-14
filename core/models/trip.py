@@ -11,13 +11,13 @@ class Trip(Base):
     __tablename__ = "trips"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    driver_id: Mapped[int] = mapped_column(ForeignKey("drivers.id", ondelete="CASCADE"))
-    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id", ondelete="CASCADE"))
+    driver_id: Mapped[int] = mapped_column(ForeignKey("drivers.id", ondelete="CASCADE"), index=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id", ondelete="CASCADE"), index=True)
     direction: Mapped[TripDirection] = mapped_column(String(10))
     total_seats: Mapped[int] = mapped_column(Integer, default=4)
     booked_seats: Mapped[int] = mapped_column(Integer, default=0)
     price_per_seat: Mapped[int] = mapped_column(Integer)
-    status: Mapped[TripStatus] = mapped_column(String(20), default=TripStatus.COLLECTING)
+    status: Mapped[TripStatus] = mapped_column(String(20), default=TripStatus.COLLECTING, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     departed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -38,8 +38,8 @@ class Booking(Base):
     __tablename__ = "bookings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    trip_id: Mapped[int] = mapped_column(ForeignKey("trips.id", ondelete="CASCADE"))
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    trip_id: Mapped[int] = mapped_column(ForeignKey("trips.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     comment: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[BookingStatus] = mapped_column(String(20), default=BookingStatus.ACTIVE)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

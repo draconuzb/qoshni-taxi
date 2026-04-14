@@ -1,9 +1,41 @@
+function getCookie(name) {
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : '';
+}
+
 async function apiAction(url, method = 'POST', body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const headers = { 'Content-Type': 'application/json' };
+    const csrf = getCookie('csrf_token');
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    const opts = { method, headers, credentials: 'same-origin' };
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(url, opts);
-    if (!res.ok) { alert('Xatolik yuz berdi'); return null; }
+    let res;
+    try {
+        res = await fetch(url, opts);
+    } catch (e) {
+        alert('Tarmoq xatosi');
+        return null;
+    }
+    if (res.status === 401) { window.location.href = '/login'; return null; }
+    if (!res.ok) {
+        let msg = 'Xatolik yuz berdi';
+        try {
+            const data = await res.json();
+            if (data?.detail) msg = data.detail;
+            else if (data?.error) msg = data.error;
+        } catch (_) { /* ignore */ }
+        alert(msg);
+        return null;
+    }
     return await res.json();
+}
+
+async function logout() {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/logout';
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // ── Drivers ──
