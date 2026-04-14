@@ -57,5 +57,23 @@ document.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('show');
 });
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+        closeSidebar();
+    }
+});
+
+// ── Mobile sidebar drawer ──
+function openSidebar() {
+    document.getElementById('sidebar')?.classList.add('open');
+    document.getElementById('sidebarOverlay')?.classList.add('show');
+}
+function closeSidebar() {
+    document.getElementById('sidebar')?.classList.remove('open');
+    document.getElementById('sidebarOverlay')?.classList.remove('show');
+}
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('menuBtn')?.addEventListener('click', openSidebar);
+    document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
+    document.querySelectorAll('.sidebar a').forEach(a => a.addEventListener('click', closeSidebar));
 });

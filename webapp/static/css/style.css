@@ -434,10 +434,95 @@ td a:hover { text-decoration: underline; }
     margin-top: 16px;
 }
 
+/* ── Top bar (mobile only) ── */
+.topbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    align-items: center;
+    gap: 12px;
+}
+
+.menu-btn {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+}
+
+.topbar-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 90;
+}
+
+.sidebar-overlay.show { display: block; }
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
-    .sidebar { display: none; }
-    .main { margin-left: 0; padding: 16px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .topbar { display: flex; }
+
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        z-index: 100;
+        width: 240px;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .main {
+        margin-left: 0;
+        padding: 14px;
+        max-width: 100%;
+    }
+
+    .page-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .page-header h1 { font-size: 18px; }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .stat-card { padding: 14px; }
+    .stat-card .value { font-size: 22px; }
+
     .detail-grid { grid-template-columns: 1fr; }
+
+    .search-box { width: 100%; }
+    .search-box input { width: 100%; }
+
+    /* Tables: allow horizontal scroll */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 600px; }
+    th, td { padding: 10px 12px; font-size: 13px; }
+
+    .filters { gap: 6px; }
+    .filter-btn { padding: 5px 10px; font-size: 12px; }
+
+    .actions { flex-wrap: wrap; }
+
+    .modal { width: 100%; max-width: 100%; border-radius: 12px 12px 0 0; margin-top: auto; }
+    .modal-overlay { align-items: flex-end; }
+}
+
+@media (max-width: 400px) {
+    .stats-grid { grid-template-columns: 1fr; }
 }
