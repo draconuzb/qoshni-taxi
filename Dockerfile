@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        gcc libpq-dev curl \
+        gcc libpq-dev curl gosu \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -15,10 +15,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN useradd -m -u 1000 app && mkdir -p /app/data && chown -R app:app /app
-USER app
+RUN useradd -m -u 1000 app \
+    && mkdir -p /app/data \
+    && chown -R app:app /app \
+    && chmod +x /app/docker-entrypoint.sh
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -fsS http://localhost:8080/health || exit 1
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["python", "main.py"]
