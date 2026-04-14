@@ -13,26 +13,14 @@ async function driverAction(driverId, action) {
 }
 
 async function deleteDriver(driverId) {
-    if (!confirm("Haydovchini o'chirmoqchimisiz? Bu qaytarib bo'lmaydi!")) return;
+    if (!confirm("O'chirmoqchimisiz?")) return;
     const r = await apiAction(`/api/drivers/${driverId}`, 'DELETE');
     if (r?.ok) window.location.href = '/drivers';
 }
 
-// ── Orders ──
-async function orderCancel(orderId) {
-    if (!confirm('Buyurtmani bekor qilmoqchimisiz?')) return;
-    const r = await apiAction(`/api/orders/${orderId}/cancel`);
-    if (r?.ok) location.reload();
-}
-
-async function orderComplete(orderId) {
-    const r = await apiAction(`/api/orders/${orderId}/complete`);
-    if (r?.ok) location.reload();
-}
-
 // ── Trips ──
 async function tripAction(tripId, action) {
-    if (action === 'cancel' && !confirm('Safarni bekor qilmoqchimisiz?')) return;
+    if (action === 'cancel' && !confirm("Bekor qilmoqchimisiz?")) return;
     const r = await apiAction(`/api/trips/${tripId}/${action}`);
     if (r?.ok) location.reload();
 }
@@ -44,7 +32,7 @@ async function routeToggle(routeId) {
 }
 
 async function routeDelete(routeId) {
-    if (!confirm("Yo'nalishni o'chirmoqchimisiz?")) return;
+    if (!confirm("O'chirmoqchimisiz?")) return;
     const r = await apiAction(`/api/routes/${routeId}`, 'DELETE');
     if (r?.ok) location.reload();
 }
@@ -56,30 +44,18 @@ async function userAction(userId, action) {
 }
 
 async function deleteUser(userId) {
-    if (!confirm("Foydalanuvchini o'chirmoqchimisiz? Bu qaytarib bo'lmaydi!")) return;
+    if (!confirm("O'chirmoqchimisiz?")) return;
     const r = await apiAction(`/api/users/${userId}`, 'DELETE');
     if (r?.ok) window.location.href = '/users';
 }
 
 // ── Modal ──
-function showModal(id) {
-    document.getElementById(id).classList.add('show');
-}
+function showModal(id) { document.getElementById(id).classList.add('show'); }
+function hideModal(id) { document.getElementById(id).classList.remove('show'); }
 
-function hideModal(id) {
-    document.getElementById(id).classList.remove('show');
-}
-
-// Close modals on overlay click
 document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-        e.target.classList.remove('show');
-    }
+    if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('show');
 });
-
-// Close modals on Escape
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
-    }
+    if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
 });

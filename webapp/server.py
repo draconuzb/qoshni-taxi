@@ -22,12 +22,11 @@ from core.locations import REGIONS, get_full_location
 
 logger = logging.getLogger(__name__)
 
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or secrets.token_urlsafe(32)
+ADMIN_PHONE = os.environ.get("ADMIN_PHONE", "+998946930103")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "oson2024")
 _SESSION_COOKIE = "admin_session"
 _session_tokens: set[str] = set()
 
-if not os.environ.get("ADMIN_TOKEN"):
-    logger.warning("ADMIN_TOKEN not set. Generated token: %s", ADMIN_TOKEN)
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
@@ -66,21 +65,29 @@ async def login_page(request: Request, error: str = ""):
     return HTMLResponse(
         f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin Login</title>
+<title>Oson Transport — Kirish</title>
 <style>
-body{{font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f5f5f5}}
-.card{{background:#fff;padding:2rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);width:100%;max-width:400px}}
-h2{{margin-top:0;text-align:center}}
-input[type=password]{{width:100%;padding:.75rem;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;margin:.5rem 0 1rem}}
-button{{width:100%;padding:.75rem;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1rem}}
-button:hover{{background:#0056b3}}
-.error{{color:red;text-align:center;margin-bottom:1rem}}
+body{{font-family:'Inter',sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f8fafc}}
+.card{{background:#fff;padding:2.5rem;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.08);width:100%;max-width:380px}}
+h2{{margin:0 0 1.5rem;text-align:center;color:#0f172a;font-size:1.4rem}}
+label{{font-size:.85rem;color:#64748b;display:block;margin-bottom:.3rem}}
+input{{width:100%;padding:.75rem;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;margin-bottom:1rem;font-size:1rem}}
+input:focus{{outline:none;border-color:#34D399}}
+button{{width:100%;padding:.75rem;background:#34D399;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600}}
+button:hover{{background:#059669}}
+.error{{color:#ef4444;text-align:center;margin-bottom:1rem;font-size:.9rem}}
+.logo{{text-align:center;margin-bottom:1rem;font-size:1.5rem;font-weight:700;color:#34D399}}
 </style></head><body>
-<div class="card"><h2>Admin Panel</h2>
-{"<p class='error'>Invalid token</p>" if error else ""}
+<div class="card">
+<div class="logo">Oson Transport</div>
+<h2>Kirish</h2>
+{"<p class='error'>Telefon yoki parol noto'g'ri</p>" if error else ""}
 <form method="post" action="/login">
-<label>Admin Token</label><input type="password" name="token" autofocus required>
-<button type="submit">Login</button>
+<label>Telefon raqam</label>
+<input type="tel" name="phone" placeholder="+998946930103" autofocus required>
+<label>Parol</label>
+<input type="password" name="password" required>
+<button type="submit">Kirish</button>
 </form></div></body></html>"""
     )
 
@@ -88,8 +95,9 @@ button:hover{{background:#0056b3}}
 @app.post("/login")
 async def login_submit(request: Request):
     form = await request.form()
-    token = form.get("token", "")
-    if not secrets.compare_digest(str(token), ADMIN_TOKEN):
+    phone = str(form.get("phone", "")).strip()
+    password = str(form.get("password", "")).strip()
+    if phone != ADMIN_PHONE or password != ADMIN_PASSWORD:
         return RedirectResponse("/login?error=1", status_code=302)
     session_token = secrets.token_urlsafe(32)
     _session_tokens.add(session_token)
@@ -113,26 +121,21 @@ async def dashboard(request: Request, session: AsyncSession = Depends(get_sessio
 
     total_users = await session.scalar(select(func.count(User.id))) or 0
     total_drivers = await session.scalar(select(func.count(Driver.id))) or 0
-    online_drivers = await session.scalar(select(func.count(Driver.id)).where(Driver.is_online == True)) or 0
-    pending_drivers = await session.scalar(select(func.count(Driver.id)).where(Driver.status == DriverStatus.PENDING_VERIFICATION)) or 0
-
     today_orders = await session.scalar(select(func.count(Booking.id)).where(Booking.created_at >= today_start)) or 0
-    today_completed = await session.scalar(select(func.count(Trip.id)).where(and_(Trip.status == TripStatus.COMPLETED, Trip.completed_at >= today_start))) or 0
-    today_revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(and_(Trip.status == TripStatus.COMPLETED, Trip.completed_at >= today_start))) or 0
-    active_orders = await session.scalar(select(func.count(Trip.id)).where(Trip.status.in_([TripStatus.COLLECTING, TripStatus.DEPARTED]))) or 0
+    today_departed = await session.scalar(select(func.count(Trip.id)).where(and_(Trip.status == TripStatus.DEPARTED, Trip.departed_at >= today_start))) or 0
+    today_revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(and_(Trip.status == TripStatus.DEPARTED, Trip.departed_at >= today_start))) or 0
+    active_trips = await session.scalar(select(func.count(Trip.id)).where(Trip.status == TripStatus.COLLECTING)) or 0
     total_orders = await session.scalar(select(func.count(Booking.id))) or 0
-    total_completed = await session.scalar(select(func.count(Trip.id)).where(Trip.status == TripStatus.COMPLETED)) or 0
-    total_revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(Trip.status == TripStatus.COMPLETED)) or 0
+    total_departed = await session.scalar(select(func.count(Trip.id)).where(Trip.status == TripStatus.DEPARTED)) or 0
+    total_revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(Trip.status == TripStatus.DEPARTED)) or 0
     total_trips = await session.scalar(select(func.count(Trip.id))) or 0
-    active_trips = await session.scalar(select(func.count(Trip.id)).where(Trip.status.in_([TripStatus.COLLECTING, TripStatus.DEPARTED]))) or 0
     total_routes = await session.scalar(select(func.count(Route.id))) or 0
 
     return templates.TemplateResponse(request, "dashboard.html", {
         "total_users": total_users, "total_drivers": total_drivers,
-        "online_drivers": online_drivers, "pending_drivers": pending_drivers,
-        "today_orders": today_orders, "today_completed": today_completed,
-        "today_revenue": today_revenue, "active_orders": active_orders,
-        "total_orders": total_orders, "total_completed": total_completed,
+        "today_orders": today_orders, "today_completed": today_departed,
+        "today_revenue": today_revenue, "active_orders": active_trips,
+        "total_orders": total_orders, "total_completed": total_departed,
         "total_revenue": total_revenue, "total_trips": total_trips,
         "active_trips": active_trips, "total_routes": total_routes,
     })
@@ -143,19 +146,15 @@ async def dashboard(request: Request, session: AsyncSession = Depends(get_sessio
 @app.get("/drivers", response_class=HTMLResponse)
 async def drivers_page(request: Request, filter: str = "all", page: int = 1, session: AsyncSession = Depends(get_session)):
     query = select(Driver, User).join(User, Driver.user_id == User.id)
-    if filter == "pending": query = query.where(Driver.status == DriverStatus.PENDING_VERIFICATION)
-    elif filter == "verified": query = query.where(Driver.status == DriverStatus.VERIFIED)
+    if filter == "verified": query = query.where(Driver.status == DriverStatus.VERIFIED)
     elif filter == "blocked": query = query.where(Driver.status == DriverStatus.BLOCKED)
-    elif filter == "rejected": query = query.where(Driver.status == DriverStatus.REJECTED)
-    elif filter == "online": query = query.where(and_(Driver.is_online == True, Driver.status == DriverStatus.VERIFIED))
-    elif filter == "offline": query = query.where(and_(Driver.is_online == False, Driver.status == DriverStatus.VERIFIED))
 
     total = await session.scalar(select(func.count()).select_from(query.subquery())) or 0
     total_pages = max(1, math.ceil(total / PAGE_SIZE))
     page = max(1, min(page, total_pages))
     result = await session.execute(query.order_by(Driver.created_at.desc()).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE))
     rows = result.all()
-    pending_count = await session.scalar(select(func.count(Driver.id)).where(Driver.status == DriverStatus.PENDING_VERIFICATION)) or 0
+    pending_count = 0
 
     return templates.TemplateResponse(request, "drivers.html", {
         "drivers": rows, "filter": filter, "page": page, "total_pages": total_pages, "total": total, "pending_count": pending_count,
@@ -168,17 +167,17 @@ async def driver_detail(request: Request, driver_id: int, session: AsyncSession 
     if not driver: raise HTTPException(404)
     user = await session.get(User, driver.user_id)
 
-    routes = []
-    if driver.route_id:
-        route = await session.get(Route, driver.route_id)
-        if route: routes.append(route)
-    result = await session.execute(select(Route).where(Route.is_active == True).order_by(Route.id))
-    all_routes = result.scalars().all()
-
     # Stats from trips
     orders_count = await session.scalar(select(func.count(Trip.id)).where(Trip.driver_id == driver_id)) or 0
-    completed = await session.scalar(select(func.count(Trip.id)).where(and_(Trip.driver_id == driver_id, Trip.status == TripStatus.COMPLETED))) or 0
-    revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(and_(Trip.driver_id == driver_id, Trip.status == TripStatus.COMPLETED))) or 0
+    completed = await session.scalar(select(func.count(Trip.id)).where(and_(Trip.driver_id == driver_id, Trip.status == TripStatus.DEPARTED))) or 0
+    revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(and_(Trip.driver_id == driver_id, Trip.status == TripStatus.DEPARTED))) or 0
+
+    # Favorite routes
+    fav_result = await session.execute(
+        select(UserRoute).where(UserRoute.user_id == driver.user_id).options(selectinload(UserRoute.route))
+    )
+    routes = [fr.route for fr in fav_result.scalars().all()]
+    all_routes = (await session.execute(select(Route).where(Route.is_active == True).order_by(Route.id))).scalars().all()
 
     result = await session.execute(
         select(Trip).where(Trip.driver_id == driver_id).options(selectinload(Trip.route)).order_by(Trip.created_at.desc()).limit(10)
@@ -204,7 +203,7 @@ async def api_verify_driver(driver_id: int, session: AsyncSession = Depends(get_
 async def api_reject_driver(driver_id: int, session: AsyncSession = Depends(get_session)):
     driver = await session.get(Driver, driver_id)
     if not driver: raise HTTPException(404)
-    driver.status = DriverStatus.REJECTED
+    driver.status = DriverStatus.BLOCKED
     await session.commit()
     return {"ok": True}
 
@@ -238,16 +237,6 @@ async def api_delete_driver(driver_id: int, session: AsyncSession = Depends(get_
     await session.commit()
     return {"ok": True}
 
-@app.post("/api/drivers/{driver_id}/assign-route")
-async def api_assign_route(driver_id: int, request: Request, session: AsyncSession = Depends(get_session)):
-    data = await request.json()
-    driver = await session.get(Driver, driver_id)
-    if not driver: raise HTTPException(404)
-    route_id = data.get("route_id")
-    driver.route_id = int(route_id) if route_id else None
-    await session.commit()
-    return {"ok": True}
-
 @app.post("/api/drivers/{driver_id}/update")
 async def api_update_driver(driver_id: int, request: Request, session: AsyncSession = Depends(get_session)):
     data = await request.json()
@@ -265,7 +254,7 @@ async def api_update_driver(driver_id: int, request: Request, session: AsyncSess
 @app.get("/trips", response_class=HTMLResponse)
 async def trips_page(request: Request, filter: str = "all", page: int = 1, session: AsyncSession = Depends(get_session)):
     query = select(Trip).options(selectinload(Trip.route), selectinload(Trip.driver).selectinload(Driver.user))
-    status_map = {"collecting": TripStatus.COLLECTING, "departed": TripStatus.DEPARTED, "completed": TripStatus.COMPLETED, "cancelled": TripStatus.CANCELLED}
+    status_map = {"collecting": TripStatus.COLLECTING, "departed": TripStatus.DEPARTED, "cancelled": TripStatus.CANCELLED}
     if filter in status_map: query = query.where(Trip.status == status_map[filter])
 
     total = await session.scalar(select(func.count()).select_from(query.subquery())) or 0
@@ -300,18 +289,6 @@ async def api_cancel_trip(trip_id: int, session: AsyncSession = Depends(get_sess
     await session.commit()
     return {"ok": True}
 
-@app.post("/api/trips/{trip_id}/complete")
-async def api_complete_trip(trip_id: int, session: AsyncSession = Depends(get_session)):
-    trip = await session.get(Trip, trip_id)
-    if not trip: raise HTTPException(404)
-    if trip.status != TripStatus.DEPARTED:
-        raise HTTPException(400, detail="Only departed trips can be completed")
-    trip.status = TripStatus.COMPLETED
-    trip.completed_at = datetime.utcnow()
-    await session.commit()
-    return {"ok": True}
-
-
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/routes", response_class=HTMLResponse)
@@ -325,9 +302,9 @@ async def routes_page(request: Request, page: int = 1, session: AsyncSession = D
     route_stats = {}
     for route in routes:
         trips_count = await session.scalar(select(func.count(Trip.id)).where(Trip.route_id == route.id)) or 0
-        completed = await session.scalar(select(func.count(Trip.id)).where(and_(Trip.route_id == route.id, Trip.status == TripStatus.COMPLETED))) or 0
-        revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(and_(Trip.route_id == route.id, Trip.status == TripStatus.COMPLETED))) or 0
-        driver_count = await session.scalar(select(func.count(Driver.id)).where(Driver.route_id == route.id)) or 0
+        completed = await session.scalar(select(func.count(Trip.id)).where(and_(Trip.route_id == route.id, Trip.status == TripStatus.DEPARTED))) or 0
+        revenue = await session.scalar(select(func.coalesce(func.sum(Trip.price_per_seat * Trip.booked_seats), 0)).where(and_(Trip.route_id == route.id, Trip.status == TripStatus.DEPARTED))) or 0
+        driver_count = await session.scalar(select(func.count(UserRoute.id)).where(UserRoute.route_id == route.id)) or 0
         route_stats[route.id] = {"orders": trips_count, "completed": completed, "revenue": revenue, "drivers": driver_count}
 
     return templates.TemplateResponse(request, "routes.html", {
@@ -485,6 +462,30 @@ async def settings_page(request: Request, session: AsyncSession = Depends(get_se
     from infrastructure.config import settings as app_settings
     total_routes = await session.scalar(select(func.count(Route.id))) or 0
     active_routes = await session.scalar(select(func.count(Route.id)).where(Route.is_active == True)) or 0
+    result = await session.execute(select(Route).where(Route.is_active == True).order_by(Route.id))
+    all_routes = result.scalars().all()
     return templates.TemplateResponse(request, "settings.html", {
-        "settings": app_settings, "total_routes": total_routes, "active_routes": active_routes, "regions": REGIONS,
+        "settings": app_settings, "total_routes": total_routes, "active_routes": active_routes,
+        "regions": REGIONS, "all_routes": all_routes,
+        "default_route_id": app_settings.default_route_id,
+        "contact_phone": app_settings.contact_phone,
     })
+
+
+@app.post("/api/settings/default-route")
+async def api_set_default_route(request: Request):
+    from infrastructure.config import settings as app_settings
+    data = await request.json()
+    route_id = int(data.get("route_id", 1))
+    app_settings.default_route_id = route_id
+    return {"ok": True}
+
+
+@app.post("/api/settings/contact-phone")
+async def api_set_contact_phone(request: Request):
+    from infrastructure.config import settings as app_settings
+    data = await request.json()
+    phone = data.get("phone", "").strip()
+    if phone:
+        app_settings.contact_phone = phone
+    return {"ok": True}

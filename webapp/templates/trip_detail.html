@@ -7,9 +7,8 @@
     <a href="/trips" class="btn btn-outline">◀ Orqaga</a>
 </div>
 
-{% if trip.status in ['collecting', 'departed'] %}
+{% if trip.status == 'collecting' %}
 <div class="actions">
-    <button class="btn btn-success" onclick="tripAction({{ trip.id }}, 'complete')">✅ Bajarilgan</button>
     <button class="btn btn-danger" onclick="tripAction({{ trip.id }}, 'cancel')">❌ Bekor qilish</button>
 </div>
 {% endif %}
@@ -22,8 +21,7 @@
             <span class="value">
                 <span class="badge-status badge-{{ trip.status }}">
                     {% if trip.status == 'collecting' %}To'planmoqda
-                    {% elif trip.status == 'departed' %}Yo'lda
-                    {% elif trip.status == 'completed' %}Bajarilgan
+                    {% elif trip.status == 'departed' %}Yo'lga chiqqan
                     {% elif trip.status == 'cancelled' %}Bekor
                     {% else %}{{ trip.status }}{% endif %}
                 </span>
@@ -46,7 +44,7 @@
             <span class="value">{{ trip.booked_seats }} / {{ trip.total_seats }}</span>
         </div>
         <div class="detail-row">
-            <span class="label">Narx (1 o'rin)</span>
+            <span class="label">Narx</span>
             <span class="value">{{ "{:,}".format(trip.price_per_seat) }} so'm</span>
         </div>
     </div>
@@ -60,32 +58,15 @@
             <span class="label">Yo'lga chiqqan</span>
             <span class="value">{{ trip.departed_at.strftime('%d.%m.%Y %H:%M') if trip.departed_at else '—' }}</span>
         </div>
-        <div class="detail-row">
-            <span class="label">Tugagan</span>
-            <span class="value">{{ trip.completed_at.strftime('%d.%m.%Y %H:%M') if trip.completed_at else '—' }}</span>
-        </div>
     </div>
     <div class="detail-card">
         <h3>Haydovchi</h3>
         {% if trip.driver %}
-        <div class="detail-row">
-            <span class="label">Ism</span>
-            <span class="value"><a href="/drivers/{{ trip.driver.id }}">{{ trip.driver.user.full_name if trip.driver.user else '—' }}</a></span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Mashina</span>
-            <span class="value">{{ trip.driver.car_model }} ({{ trip.driver.car_color }})</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Raqam</span>
-            <span class="value">{{ trip.driver.license_plate }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Reyting</span>
-            <span class="value">⭐ {{ "%.1f"|format(trip.driver.rating) }}</span>
-        </div>
+        <div class="detail-row"><span class="label">Ism</span><span class="value"><a href="/drivers/{{ trip.driver.id }}">{{ trip.driver.user.full_name if trip.driver.user else '—' }}</a></span></div>
+        <div class="detail-row"><span class="label">Mashina</span><span class="value">{{ trip.driver.car_model }} ({{ trip.driver.car_color }})</span></div>
+        <div class="detail-row"><span class="label">Raqam</span><span class="value">{{ trip.driver.license_plate }}</span></div>
         {% else %}
-        <p style="color:var(--text-dim)">Haydovchi tayinlanmagan</p>
+        <p style="color:var(--text-dim)">Haydovchi yo'q</p>
         {% endif %}
     </div>
     <div class="detail-card">
@@ -93,13 +74,10 @@
         {% if trip.bookings %}
         {% for booking in trip.bookings %}
         <div class="detail-row">
-            <span class="label">
-                {% if booking.user %}<a href="/users/{{ booking.user.id }}">{{ booking.user.full_name }}</a>{% else %}—{% endif %}
-            </span>
+            <span class="label">{% if booking.user %}<a href="/users/{{ booking.user.id }}">{{ booking.user.full_name }}</a>{% else %}—{% endif %}</span>
             <span class="value">
                 <span class="badge-status badge-{{ booking.status }}">
                     {% if booking.status == 'active' %}Faol
-                    {% elif booking.status == 'picked_up' %}Olib ketildi
                     {% elif booking.status == 'cancelled' %}Bekor
                     {% else %}{{ booking.status }}{% endif %}
                 </span>

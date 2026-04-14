@@ -8,12 +8,7 @@
 
 <div class="filters">
     <a href="/drivers?filter=all" class="filter-btn {% if filter == 'all' %}active{% endif %}">Barchasi</a>
-    <a href="/drivers?filter=pending" class="filter-btn {% if filter == 'pending' %}active{% endif %}">
-        ⏳ Kutilmoqda{% if pending_count %} ({{ pending_count }}){% endif %}
-    </a>
-    <a href="/drivers?filter=online" class="filter-btn {% if filter == 'online' %}active{% endif %}">🟢 Online</a>
-    <a href="/drivers?filter=offline" class="filter-btn {% if filter == 'offline' %}active{% endif %}">🔴 Offline</a>
-    <a href="/drivers?filter=verified" class="filter-btn {% if filter == 'verified' %}active{% endif %}">✅ Tasdiqlangan</a>
+    <a href="/drivers?filter=verified" class="filter-btn {% if filter == 'verified' %}active{% endif %}">✅ Faol</a>
     <a href="/drivers?filter=blocked" class="filter-btn {% if filter == 'blocked' %}active{% endif %}">🚫 Bloklangan</a>
 </div>
 
@@ -26,8 +21,6 @@
                 <th>Mashina</th>
                 <th>Raqam</th>
                 <th>Holat</th>
-                <th>Online</th>
-                <th>Reyting</th>
                 <th>Safarlar</th>
                 <th></th>
             </tr>
@@ -40,14 +33,9 @@
                 <td>{{ driver.car_model }} ({{ driver.car_color }})</td>
                 <td>{{ driver.license_plate }}</td>
                 <td><span class="badge-status badge-{{ driver.status }}">{{ driver.status }}</span></td>
-                <td><span class="badge-status {% if driver.is_online %}badge-online{% else %}badge-offline{% endif %}">{% if driver.is_online %}Online{% else %}Offline{% endif %}</span></td>
-                <td>⭐ {{ "%.1f"|format(driver.rating) }}</td>
                 <td>{{ driver.total_trips }}</td>
                 <td>
-                    {% if driver.status == 'pending_verification' %}
-                    <button class="btn btn-success btn-sm" onclick="driverAction({{ driver.id }}, 'verify')">✅</button>
-                    <button class="btn btn-danger btn-sm" onclick="driverAction({{ driver.id }}, 'reject')">❌</button>
-                    {% elif driver.status == 'verified' %}
+                    {% if driver.status == 'verified' %}
                     <button class="btn btn-danger btn-sm" onclick="driverAction({{ driver.id }}, 'block')">🚫</button>
                     {% elif driver.status == 'blocked' %}
                     <button class="btn btn-warning btn-sm" onclick="driverAction({{ driver.id }}, 'unblock')">🔓</button>
@@ -57,7 +45,7 @@
             </tr>
             {% endfor %}
             {% if not drivers %}
-            <tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:40px">Haydovchilar topilmadi</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">Haydovchilar topilmadi</td></tr>
             {% endif %}
         </tbody>
     </table>
@@ -65,11 +53,8 @@
     <div class="pagination">
         {% if page > 1 %}<a href="/drivers?filter={{ filter }}&page={{ page-1 }}">◀</a>{% endif %}
         {% for p in range(1, total_pages+1) %}
-            {% if p == page %}
-            <span class="current">{{ p }}</span>
-            {% else %}
-            <a href="/drivers?filter={{ filter }}&page={{ p }}">{{ p }}</a>
-            {% endif %}
+            {% if p == page %}<span class="current">{{ p }}</span>
+            {% else %}<a href="/drivers?filter={{ filter }}&page={{ p }}">{{ p }}</a>{% endif %}
         {% endfor %}
         {% if page < total_pages %}<a href="/drivers?filter={{ filter }}&page={{ page+1 }}">▶</a>{% endif %}
     </div>

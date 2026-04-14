@@ -194,7 +194,7 @@ async def _show_trips(message, session: AsyncSession, route: Route, direction: T
                 f"🚗 <b>{u.full_name if u else '—'}</b>\n"
                 f"   🚙 {d.car_model} ({d.car_color}) • {d.license_plate}\n"
                 f"   📞 {_phone_link(u.phone if u else None)}\n"
-                f"   ⭐ {d.rating:.1f} • 💺 {trip.seats_left}/{trip.total_seats}{hint} • 💰 {trip.price_per_seat:,}\n\n"
+                f"   💺 {trip.seats_left}/{trip.total_seats}{hint} • 💰 {trip.price_per_seat:,}\n\n"
             )
             rows.append([InlineKeyboardButton(
                 text=f"✅ {u.full_name if u else '—'} • {trip.seats_left} • {trip.price_per_seat:,}",
@@ -246,6 +246,12 @@ async def book_skip_comment(message: Message, session: AsyncSession, db_user: Us
     await _create_booking(message, session, db_user, state, bot, lang, comment=None)
 
 
+@router.message(BookingState.waiting_comment, F.text == "/cancel")
+async def book_cancel_comment(message: Message, state: FSMContext, lang: str = "uz"):
+    await state.clear()
+    await message.answer(t("cancelled", lang), reply_markup=client_menu_kb(lang))
+
+
 @router.message(BookingState.waiting_comment, F.text)
 async def book_with_comment(message: Message, session: AsyncSession, db_user: User | None, state: FSMContext, bot: Bot, lang: str = "uz"):
     if not db_user:
@@ -254,8 +260,20 @@ async def book_with_comment(message: Message, session: AsyncSession, db_user: Us
 
 
 @router.message(BookingState.waiting_comment)
-async def book_comment_invalid(message: Message, state: FSMContext):
-    await message.answer("📝 Iltimos, matn yuboring yoki /skip bosing.")
+async def book_comment_invalid(message: Message, state: FSMContext, lang: str = "uz"):
+    await message.answer(
+        "📝 /skip\n/cancel",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=t("btn_cancel", lang), callback_data="book:fsm_cancel")],
+        ]),
+    )
+
+
+@router.callback_query(F.data == "book:fsm_cancel")
+async def book_fsm_cancel(callback: CallbackQuery, state: FSMContext, lang: str = "uz"):
+    await state.clear()
+    await callback.message.edit_text(t("cancelled", lang))
+    await callback.answer()
 
 
 async def _create_booking(message: Message, session: AsyncSession, db_user: User, state: FSMContext, bot: Bot, lang: str, comment: str | None):
@@ -476,7 +494,6 @@ async def _show_active_booking(message: Message, session: AsyncSession, booking:
         f"🚗 {trip.driver.user.full_name}\n"
         f"🚙 {trip.driver.car_model} ({trip.driver.car_color}) • {trip.driver.license_plate}\n"
         f"📞 {_phone_link(trip.driver.user.phone)}\n"
-        f"⭐ {trip.driver.rating:.1f}\n"
         f"💰 {trip.price_per_seat:,}"
         f"{comment_text}{seats_hint}",
         reply_markup=_booking_kb(booking.id, lang),

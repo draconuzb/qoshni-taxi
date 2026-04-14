@@ -9,8 +9,7 @@
 <div class="filters">
     <a href="/trips?filter=all" class="filter-btn {% if filter == 'all' %}active{% endif %}">Barchasi</a>
     <a href="/trips?filter=collecting" class="filter-btn {% if filter == 'collecting' %}active{% endif %}">🟡 To'planmoqda</a>
-    <a href="/trips?filter=departed" class="filter-btn {% if filter == 'departed' %}active{% endif %}">🚐 Yo'lda</a>
-    <a href="/trips?filter=completed" class="filter-btn {% if filter == 'completed' %}active{% endif %}">✅ Bajarilgan</a>
+    <a href="/trips?filter=departed" class="filter-btn {% if filter == 'departed' %}active{% endif %}">🚐 Yo'lga chiqqan</a>
     <a href="/trips?filter=cancelled" class="filter-btn {% if filter == 'cancelled' %}active{% endif %}">❌ Bekor</a>
 </div>
 
@@ -21,7 +20,6 @@
                 <th>#</th>
                 <th>Yo'nalish</th>
                 <th>Haydovchi</th>
-                <th>Yo'nalish turi</th>
                 <th>O'rinlar</th>
                 <th>Narx</th>
                 <th>Holat</th>
@@ -47,29 +45,26 @@
                     <a href="/drivers/{{ trip.driver.id }}">{{ trip.driver.car_model }} ({{ trip.driver.license_plate }})</a>
                     {% else %}—{% endif %}
                 </td>
-                <td>{% if trip.direction == TripDirection.A_TO_B %}A → B{% else %}B → A{% endif %}</td>
                 <td>{{ trip.booked_seats }}/{{ trip.total_seats }}</td>
                 <td>{{ "{:,}".format(trip.price_per_seat) }}</td>
                 <td>
                     <span class="badge-status badge-{{ trip.status }}">
                         {% if trip.status == 'collecting' %}To'planmoqda
-                        {% elif trip.status == 'departed' %}Yo'lda
-                        {% elif trip.status == 'completed' %}Bajarilgan
+                        {% elif trip.status == 'departed' %}Yo'lga chiqqan
                         {% elif trip.status == 'cancelled' %}Bekor
                         {% else %}{{ trip.status }}{% endif %}
                     </span>
                 </td>
                 <td>{{ trip.created_at.strftime('%d.%m.%Y %H:%M') if trip.created_at else '—' }}</td>
                 <td>
-                    {% if trip.status in ['collecting', 'departed'] %}
-                    <button class="btn btn-success btn-sm" onclick="tripAction({{ trip.id }}, 'complete')">✅</button>
+                    {% if trip.status == 'collecting' %}
                     <button class="btn btn-danger btn-sm" onclick="tripAction({{ trip.id }}, 'cancel')">❌</button>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
             {% if not trips %}
-            <tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:40px">Safarlar topilmadi</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:40px">Safarlar topilmadi</td></tr>
             {% endif %}
         </tbody>
     </table>

@@ -27,9 +27,8 @@
             <span class="label">Rol</span>
             <span class="value">
                 <select id="user-role" onchange="changeRole({{ user.id }})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:13px">
-                    <option value="user" {% if user.role == 'user' %}selected{% endif %}>👤 Foydalanuvchi</option>
+                    <option value="user" {% if user.role == 'user' %}selected{% endif %}>👤 Yo'lovchi</option>
                     <option value="driver" {% if user.role == 'driver' %}selected{% endif %}>🚗 Haydovchi</option>
-                    <option value="manager" {% if user.role == 'manager' %}selected{% endif %}>👨‍💼 Manager</option>
                 </select>
             </span>
         </div>

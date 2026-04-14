@@ -8,15 +8,10 @@
 </div>
 
 <div class="actions">
-    {% if driver.status == 'pending_verification' %}
-    <button class="btn btn-success" onclick="driverAction({{ driver.id }}, 'verify')">✅ Tasdiqlash</button>
-    <button class="btn btn-danger" onclick="driverAction({{ driver.id }}, 'reject')">❌ Rad etish</button>
-    {% elif driver.status == 'verified' %}
+    {% if driver.status == 'verified' %}
     <button class="btn btn-danger" onclick="driverAction({{ driver.id }}, 'block')">🚫 Bloklash</button>
     {% elif driver.status == 'blocked' %}
     <button class="btn btn-warning" onclick="driverAction({{ driver.id }}, 'unblock')">🔓 Blokdan chiqarish</button>
-    {% elif driver.status == 'rejected' %}
-    <button class="btn btn-success" onclick="driverAction({{ driver.id }}, 'verify')">✅ Tasdiqlash</button>
     {% endif %}
     <button class="btn btn-outline" onclick="showModal('edit-driver-modal')">✏️ Tahrirlash</button>
     <button class="btn btn-danger" onclick="deleteDriver({{ driver.id }})">🗑 O'chirish</button>
@@ -25,109 +20,43 @@
 <div class="detail-grid">
     <div class="detail-card">
         <h3>Shaxsiy ma'lumotlar</h3>
-        <div class="detail-row">
-            <span class="label">Ism</span>
-            <span class="value">{{ user.full_name }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Telefon</span>
-            <span class="value">{{ user.phone or '—' }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Telegram ID</span>
-            <span class="value">{{ user.telegram_id }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Holat</span>
-            <span class="value"><span class="badge-status badge-{{ driver.status }}">{{ driver.status }}</span></span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Online</span>
-            <span class="value"><span class="badge-status {% if driver.is_online %}badge-online{% else %}badge-offline{% endif %}">{% if driver.is_online %}Online{% else %}Offline{% endif %}</span></span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Ro'yxatdan</span>
-            <span class="value">{{ driver.created_at.strftime('%d.%m.%Y %H:%M') if driver.created_at else '—' }}</span>
-        </div>
+        <div class="detail-row"><span class="label">Ism</span><span class="value">{{ user.full_name }}</span></div>
+        <div class="detail-row"><span class="label">Telefon</span><span class="value">{{ user.phone or '—' }}</span></div>
+        <div class="detail-row"><span class="label">Telegram ID</span><span class="value">{{ user.telegram_id }}</span></div>
+        <div class="detail-row"><span class="label">Holat</span><span class="value"><span class="badge-status badge-{{ driver.status }}">{{ driver.status }}</span></span></div>
+        <div class="detail-row"><span class="label">Ro'yxatdan</span><span class="value">{{ driver.created_at.strftime('%d.%m.%Y %H:%M') if driver.created_at else '—' }}</span></div>
     </div>
     <div class="detail-card">
         <h3>Mashina</h3>
-        <div class="detail-row">
-            <span class="label">Model</span>
-            <span class="value">{{ driver.car_model }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Rang</span>
-            <span class="value">{{ driver.car_color }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Raqam</span>
-            <span class="value">{{ driver.license_plate }}</span>
-        </div>
+        <div class="detail-row"><span class="label">Model</span><span class="value">{{ driver.car_model }}</span></div>
+        <div class="detail-row"><span class="label">Rang</span><span class="value">{{ driver.car_color }}</span></div>
+        <div class="detail-row"><span class="label">Raqam</span><span class="value">{{ driver.license_plate }}</span></div>
     </div>
     <div class="detail-card">
         <h3>Statistika</h3>
-        <div class="detail-row">
-            <span class="label">Reyting</span>
-            <span class="value">⭐ {{ "%.1f"|format(driver.rating) }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Safarlar</span>
-            <span class="value">{{ driver.total_trips }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Buyurtmalar</span>
-            <span class="value">{{ completed }}/{{ orders_count }}</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Daromad</span>
-            <span class="value">{{ "{:,}".format(revenue) }} so'm</span>
-        </div>
-        <div class="detail-row">
-            <span class="label">Ketma-ket skip</span>
-            <span class="value">{{ driver.consecutive_skips }}</span>
-        </div>
+        <div class="detail-row"><span class="label">Safarlar</span><span class="value">{{ completed }}/{{ orders_count }}</span></div>
+        <div class="detail-row"><span class="label">Daromad</span><span class="value">{{ "{:,}".format(revenue) }} so'm</span></div>
     </div>
     <div class="detail-card">
-        <h3>Yo'nalish</h3>
+        <h3>Yo'nalishlar</h3>
         {% if routes %}
         {% for route in routes %}
         <div class="detail-row">
-            <span class="label">{{ route.from_name }} → {{ route.to_name }}</span>
+            <span class="label">{{ route.from_name }} ↔ {{ route.to_name }}</span>
             <span class="value">{{ "{:,}".format(route.price) }} so'm</span>
         </div>
         {% endfor %}
         {% else %}
-        <p style="color:var(--text-dim);margin-bottom:12px">Yo'nalish tayinlanmagan</p>
+        <p style="color:var(--text-dim)">Yo'nalish yo'q</p>
         {% endif %}
-        <div style="margin-top:12px">
-            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">YO'NALISH TAYINLASH</label>
-            <select id="route-select" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
-                <option value="">— Tanlanmagan —</option>
-                {% for r in all_routes %}
-                <option value="{{ r.id }}" {% if driver.route_id == r.id %}selected{% endif %}>{{ r.from_name }} → {{ r.to_name }}</option>
-                {% endfor %}
-            </select>
-            <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="assignRoute({{ driver.id }})">Saqlash</button>
-        </div>
     </div>
 </div>
 
 {% if recent_orders %}
 <div class="table-wrap">
-    <div class="table-header">
-        <h2>Oxirgi safarlar</h2>
-    </div>
+    <div class="table-header"><h2>Oxirgi safarlar</h2></div>
     <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Yo'nalish</th>
-                <th>Holat</th>
-                <th>Joylar</th>
-                <th>Sana</th>
-            </tr>
-        </thead>
+        <thead><tr><th>#</th><th>Yo'nalish</th><th>Holat</th><th>Joylar</th><th>Sana</th></tr></thead>
         <tbody>
             {% for trip in recent_orders %}
             <tr>
@@ -143,11 +72,10 @@
 </div>
 {% endif %}
 
-<!-- Edit Driver Modal -->
 <div class="modal-overlay" id="edit-driver-modal">
     <div class="modal">
-        <h3>Haydovchi ma'lumotlarini tahrirlash</h3>
-        <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">MASHINA MODELI</label>
+        <h3>Tahrirlash</h3>
+        <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">MASHINA</label>
         <input type="text" id="edit-car-model" value="{{ driver.car_model }}">
         <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">RANG</label>
         <input type="text" id="edit-car-color" value="{{ driver.car_color }}">
@@ -163,14 +91,6 @@
 
 {% block scripts %}
 <script>
-async function assignRoute(driverId) {
-    const routeId = document.getElementById('route-select').value;
-    const r = await apiAction(`/api/drivers/${driverId}/assign-route`, 'POST', {
-        route_id: routeId ? parseInt(routeId) : null
-    });
-    if (r?.ok) location.reload();
-}
-
 async function updateDriver(driverId) {
     const r = await apiAction(`/api/drivers/${driverId}/update`, 'POST', {
         car_model: document.getElementById('edit-car-model').value,

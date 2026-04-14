@@ -8,9 +8,9 @@
 
 <div class="stats-grid">
     <div class="stat-card accent">
-        <div class="label">Bugungi buyurtmalar</div>
+        <div class="label">Bugungi bronlar</div>
         <div class="value">{{ today_orders }}</div>
-        <div class="sub">{{ today_completed }} ta bajarilgan</div>
+        <div class="sub">{{ today_completed }} ta yo'lga chiqqan</div>
     </div>
     <div class="stat-card green">
         <div class="label">Bugungi daromad</div>
@@ -18,14 +18,13 @@
         <div class="sub">so'm</div>
     </div>
     <div class="stat-card yellow">
-        <div class="label">Faol buyurtmalar</div>
-        <div class="value">{{ active_orders }}</div>
-        <div class="sub">hozir</div>
+        <div class="label">Faol safarlar</div>
+        <div class="value">{{ active_trips }}</div>
+        <div class="sub">hozir to'planmoqda</div>
     </div>
     <div class="stat-card purple">
-        <div class="label">Online haydovchilar</div>
-        <div class="value">{{ online_drivers }}/{{ total_drivers }}</div>
-        <div class="sub">{% if pending_drivers %}<a href="/drivers?filter=pending" style="color:var(--yellow)">{{ pending_drivers }} ta tasdiqlash kutmoqda</a>{% else %}barchasi tasdiqlangan{% endif %}</div>
+        <div class="label">Haydovchilar</div>
+        <div class="value">{{ total_drivers }}</div>
     </div>
 </div>
 
@@ -35,9 +34,8 @@
         <div class="value">{{ total_users }}</div>
     </div>
     <div class="stat-card">
-        <div class="label">Jami buyurtmalar</div>
+        <div class="label">Jami bronlar</div>
         <div class="value">{{ total_orders }}</div>
-        <div class="sub">{{ total_completed }} ta bajarilgan</div>
     </div>
     <div class="stat-card">
         <div class="label">Umumiy daromad</div>
@@ -45,9 +43,8 @@
         <div class="sub">so'm</div>
     </div>
     <div class="stat-card">
-        <div class="label">Yo'nalishlar / Safarlar</div>
+        <div class="label">Yo'nalishlar</div>
         <div class="value">{{ total_routes }}</div>
-        <div class="sub">{{ active_trips }} ta faol safar</div>
     </div>
 </div>
 {% endblock %}

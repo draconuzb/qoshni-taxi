@@ -7,9 +7,6 @@ class RegistrationState(StatesGroup):
     car_model = State()
     car_color = State()
     license_plate = State()
-    select_region = State()
-    select_district = State()
-    select_route = State()
 
 
 class EditProfileState(StatesGroup):
