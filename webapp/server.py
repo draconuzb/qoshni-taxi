@@ -168,11 +168,6 @@ async def login_submit(request: Request):
         httponly=True, samesite="lax", secure=SESSION_SECURE,
         max_age=SESSION_TTL,
     )
-    response.set_cookie(
-        _CSRF_COOKIE, secrets.token_urlsafe(32),
-        httponly=False, samesite="lax", secure=SESSION_SECURE,
-        max_age=SESSION_TTL,
-    )
     return response
 
 
