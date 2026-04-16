@@ -1,6 +1,8 @@
+from contextlib import suppress
 import logging
 
 from aiogram import Router, F, Bot
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select
@@ -204,7 +206,8 @@ async def _show_trips(message, session: AsyncSession, route: Route, direction: T
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
 
     if edit:
-        await message.edit_text(text, reply_markup=kb, disable_web_page_preview=True)
+        with suppress(TelegramBadRequest):
+            await message.edit_text(text, reply_markup=kb, disable_web_page_preview=True)
     else:
         await message.answer(text, reply_markup=kb, disable_web_page_preview=True)
 
@@ -358,7 +361,7 @@ async def edit_comment_start(callback: CallbackQuery, session: AsyncSession, db_
     if not booking or booking.user_id != db_user.id:
         return
     if booking.status != BookingStatus.ACTIVE:
-        await callback.answer(t("booking_not_active", lang), show_alert=True)
+        await callback.answer("❌ Bu bron faol emas.", show_alert=True)
         return
     current = booking.comment or "—"
     await state.update_data(edit_booking_id=booking_id)
@@ -385,8 +388,8 @@ async def edit_comment_save(message: Message, session: AsyncSession, db_user: Us
 
 
 @router.message(BookingState.editing_comment)
-async def edit_comment_invalid(message: Message, state: FSMContext, lang: str = "uz"):
-    await message.answer(t("send_text_please", lang))
+async def edit_comment_invalid(message: Message, state: FSMContext):
+    await message.answer("📝 Iltimos, matn yuboring.")
 
 
 @router.callback_query(F.data.startswith("book:del_comment:"))
@@ -398,7 +401,7 @@ async def delete_comment(callback: CallbackQuery, session: AsyncSession, db_user
     if not booking or booking.user_id != db_user.id:
         return
     if booking.status != BookingStatus.ACTIVE:
-        await callback.answer(t("booking_not_active", lang), show_alert=True)
+        await callback.answer("❌ Bu bron faol emas.", show_alert=True)
         return
     booking.comment = None
     await session.commit()
@@ -443,20 +446,18 @@ async def cancel_booking(callback: CallbackQuery, session: AsyncSession, db_user
     booking_id = int(callback.data.split(":")[-1])
     booking = await session.get(Booking, booking_id)
     if not booking or booking.user_id != db_user.id:
-        await callback.message.edit_text(t("booking_not_found", lang))
+        await callback.message.edit_text("❌ Bron topilmadi.")
         return
     if booking.status != BookingStatus.ACTIVE:
-        await callback.message.edit_text(t("booking_already_cancelled", lang))
+        await callback.message.edit_text("ℹ️ Bu bron allaqachon bekor qilingan.")
         return
 
     await session.refresh(booking, ["trip"])
     trip = booking.trip
-    if trip.status == TripStatus.DEPARTED:
-        await callback.message.edit_text("🚗 Transport yo'lda — endi bekor qilib bo'lmaydi.")
-        return
 
     booking.status = BookingStatus.CANCELLED
-    trip.booked_seats = max(0, trip.booked_seats - 1)
+    if trip.status == TripStatus.COLLECTING:
+        trip.booked_seats = max(0, trip.booked_seats - 1)
     await session.commit()
     await session.refresh(trip, ["driver"])
     await session.refresh(trip.driver, ["user"])

@@ -1,0 +1,29 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/qoshni-taxi
+            git pull origin main
+            docker compose -f docker-compose.prod.yml build app
+            docker compose -f docker-compose.prod.yml up -d app
+            sleep 10
+            if docker inspect --format='{{.State.Health.Status}}' qoshni-taxi-app-1 | grep -q healthy; then
+              echo "Deploy successful"
+            else
+              echo "Deploy failed - checking logs"
+              docker logs qoshni-taxi-app-1 --tail 20
+              exit 1
+            fi
